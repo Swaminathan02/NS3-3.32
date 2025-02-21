@@ -1,0 +1,22 @@
+Waf: Entering directory `/home/ubuntu/ns-allinone-3.32/ns-3.32/build'
+Waf: Leaving directory `/home/ubuntu/ns-allinone-3.32/ns-3.32/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (0.706s)
+Backoff time: 0 microseconds
+Backoff time: 1 microseconds
+Backoff time: 1 microseconds
+Backoff time: 2 microseconds
+Backoff time: 8 microseconds
+Max retries reached
+Starting TCP Timer for 2 seconds
+Sending Hello packet at 1 seconds
+TCP Timer expired at 3 seconds
+
+--- Backoff Modified Performance Metrics for 5 UAVs ---
+Total Packets Sent: 5000
+Total Packets Received: 4750
+Total Packets Lost: 250
+Packet Loss Ratio: 5 %
+Throughput: 0 Mbps
+Total Energy Consumed: 895.88 J
+Overhead Efficiency: 95 %
