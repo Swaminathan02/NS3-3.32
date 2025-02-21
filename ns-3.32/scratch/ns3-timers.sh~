@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Set path to your NS-3 directory
+NS3_DIR=~/ns-allinone-3.32/ns-3.32
+
+# Function to check if a file has been modified since the last build
+check_modified() {
+    SRC_FILE=$1
+    BUILD_DIR=$NS3_DIR/build
+
+    if [ ! -f "$BUILD_DIR/$SRC_FILE.o" ]; then
+        echo "$SRC_FILE needs to be compiled."
+        return 0
+    fi
+
+    if [ "$NS3_DIR/scratch/$SRC_FILE.cc" -nt "$BUILD_DIR/$SRC_FILE.o" ]; then
+        echo "$SRC_FILE was modified. Recompiling..."
+        return 0
+    fi
+
+    return 1
+}
+
+# Function to extract performance metrics
+extract_metrics() {
+    grep -E "Packet Loss|Throughput|Energy|Overhead Efficiency" "$1" | sed 's/^[^:]*://; s/%//g; s/ //g'
+}
+
+# Move to NS-3 directory
+cd $NS3_DIR || { echo "NS-3 directory not found. Exiting..."; exit 1; }
+
+# Compile only if the files have been modified
+echo "Checking for modified source files..."
+MODIFIED=0
+
+for file in "backoff-modifed" "olsr-hello" "tcp-server"; do
+    if check_modified "$file"; then
+        MODIFIED=1
+    fi
+done
+
+if [ $MODIFIED -eq 1 ]; then
+    echo "Changes detected. Compiling..."
+    ./waf build
+
+    if [ $? -ne 0 ]; then
+        echo "Build failed. Exiting..."
+        exit 1
+    fi
+else
+    echo "No changes detected. Skipping compilation."
+fi
+
+# Run the simulations and capture output
+echo "Running simulations..."
+./waf --run "scratch/backoff-modifed" > backoff_output.txt 2>&1
+./waf --run "scratch/olsr-hello" > olsr_output.txt 2>&1
+./waf --run "scratch/tcp-server" > tcp_output.txt 2>&1
+
+# Extract and aggregate metrics from all outputs
+backoff_metrics=$(extract_metrics backoff_output.txt)
+olsr_metrics=$(extract_metrics olsr_output.txt)
+tcp_metrics=$(extract_metrics tcp_output.txt)
+
+# Combine all metrics into one array for calculations
+IFS=$'\n' read -d '' -r -a metrics <<< "${backoff_metrics}${olsr_metrics}${tcp_metrics}"
+
+# Calculate average metrics from combined results
+avg_packet_loss=$(echo "${metrics[@]}" | awk 'NR%4==1 {sum+=$1} END {print sum/3}')
+avg_throughput=$(echo "${metrics[@]}" | awk 'NR%4==2 {sum+=$1} END {print sum/3}')
+avg_energy=$(echo "${metrics[@]}" | awk 'NR%4==3 {sum+=$1} END {print sum/3}')
+avg_efficiency=$(echo "${metrics[@]}" | awk 'NR%4==0 {sum+=$1} END {print sum/3}')
+
+# Print overall performance metrics only once
+echo "--- Overall Performance Metrics ---"
+echo "Average Packet Loss Ratio: ${avg_packet_loss:.2f}%"
+echo "Average Throughput: ${avg_throughput:.2f} Mbps"
+echo "Average Energy Consumed: ${avg_energy:.2f} J"
+echo "Average Overhead Efficiency: ${avg_efficiency:.2f}%"
